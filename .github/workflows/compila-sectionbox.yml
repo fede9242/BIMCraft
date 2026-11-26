@@ -13,7 +13,10 @@ jobs:
         run: |
           $dest = 'crates/core/src/export/formats/mesh.rs'
           $expected = '3d00186dc97393e2b0a06f3ef5ee4445d8f0493c7f92254889cbab916c4a65ac'
-          $actual = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
+          $source = [System.IO.File]::ReadAllText((Resolve-Path $dest).Path).Replace("`r`n", "`n")
+          $bytes = [System.Text.Encoding]::UTF8.GetBytes($source)
+          $actual = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+          Write-Host "SHA256 normalizzato: $actual"
           if ($actual -ne $expected) { throw 'Sorgente diverso dalla versione prevista. Patch non applicata.' }
           Copy-Item sectionbox-mesh.rs $dest -Force
       - name: Rust
