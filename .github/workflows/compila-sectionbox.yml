@@ -1,0 +1,34 @@
+name: Compila BIMCraft Section Box
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Applica patch verificata
+        shell: pwsh
+        run: |
+          $dest = 'crates/core/src/export/formats/mesh.rs'
+          $expected = '3d00186dc97393e2b0a06f3ef5ee4445d8f0493c7f92254889cbab916c4a65ac'
+          $actual = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
+          if ($actual -ne $expected) { throw 'Sorgente diverso dalla versione prevista. Patch non applicata.' }
+          Copy-Item sectionbox-mesh.rs $dest -Force
+      - name: Rust
+        run: rustup update stable && rustup default stable
+      - name: Test Section Box
+        run: cargo test --locked -p bimcraft-core section_box_limits_both_mesh_formats
+      - name: Compila Windows
+        env:
+          CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_RUSTFLAGS: -C target-feature=+crt-static
+        run: cargo build --release --locked --target x86_64-pc-windows-msvc -p bimcraft -p bimcraft-cli
+      - name: Crea pacchetto portable
+        shell: pwsh
+        run: packaging/windows/portable.ps1 -Version 0.12.0 -BinDir target/x86_64-pc-windows-msvc/release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: BIMCraft-SectionBox-Windows
+          path: bimcraft-0.12.0-windows-x64-portable.zip
+          if-no-files-found: error
